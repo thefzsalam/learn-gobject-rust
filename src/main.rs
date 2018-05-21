@@ -13,54 +13,42 @@ use glib::translate::*;
 use gtk::prelude::*;
 use gtk::*;
 
-macro_rules! impl_get_type {
-	($Namespace: ident, $InstanceType: ty, $ClassType: ty) => {
-		pub unsafe extern "C" fn get_type() -> glib_ffi::GType {
-			static mut TYPE: glib_ffi::GType = gobject_ffi::G_TYPE_INVALID;
-			static ONCE: Once = ONCE_INIT;
-			ONCE.call_once(|| {
-				let type_info = gobject_ffi::GTypeInfo {
-					class_size: mem::size_of::<$ClassType>() as u16,
-					instance_size: mem::size_of::<$InstanceType>() as u16,
-					class_init: None,
-					class_finalize: None,
-					class_data: ptr::null(),
-					instance_init: None,
-					base_init: None,
-					base_finalize: None,
-					n_preallocs: 0,
-					value_table: ptr::null()
-				};
-				let type_name = CString::new(
-					{
-						let mut type_name = String::from(stringify!($Namespace));
-						type_name.push_str(stringify!($InstanceType));
-						type_name
-					}
-				).unwrap();
-				TYPE = gobject_ffi::g_type_register_static(
-						gobject_ffi::g_object_get_type(),
-						type_name.as_ptr(),
-						&type_info,
-						gobject_ffi::GTypeFlags::empty()
-				);
-
-				/* FIXME: Make this general by adding macro parameters. */
-				let list_model_info = gobject_ffi::GInterfaceInfo {
-						interface_init: Some(init_list_model_iface),
-						interface_finalize: None,
-						interface_data: ptr::null_mut()
-				};
-				gobject_ffi::g_type_add_interface_static(
-						TYPE,
-						gio_ffi::g_list_model_get_type(),
-						&list_model_info
-				);
-			});
-
-			TYPE
-		}
-	}
+#[no_mangle]
+pub unsafe extern "C" fn my_list_model_get_type() -> glib_ffi::GType {
+	static mut TYPE: glib_ffi::GType = gobject_ffi::G_TYPE_INVALID;
+	static ONCE: Once = ONCE_INIT;
+	ONCE.call_once(|| {
+		let type_info = gobject_ffi::GTypeInfo {
+			class_size: mem::size_of::<MyListModelClass>() as u16,
+			instance_size: mem::size_of::<MyListModel>() as u16,
+			class_init: None,
+			class_finalize: None,
+			class_data: ptr::null(),
+			instance_init: None,
+			base_init: None,
+			base_finalize: None,
+			n_preallocs: 0,
+			value_table: ptr::null()
+		};
+		let type_name = CString::new("FznListModel").unwrap();
+		TYPE = gobject_ffi::g_type_register_static(
+				gobject_ffi::g_object_get_type(),
+				type_name.as_ptr(),
+				&type_info,
+				gobject_ffi::GTypeFlags::empty()
+		);
+		let list_model_info = gobject_ffi::GInterfaceInfo {
+				interface_init: Some(init_list_model_iface),
+				interface_finalize: None,
+				interface_data: ptr::null_mut()
+		};
+		gobject_ffi::g_type_add_interface_static(
+				TYPE,
+				gio_ffi::g_list_model_get_type(),
+				&list_model_info
+		);
+	});
+	TYPE
 }
 
 
@@ -81,12 +69,12 @@ impl MyListModel {
 		unsafe {
 			let g_object: *mut gobject_ffi::GObject =
 				gobject_ffi::g_object_new(
-					Self::get_type(),
+					my_list_model_get_type(),
 					ptr::null()
 				);
-			println!("is Self::get_type() {}",
+			println!("is my_list_get_type() {}",
 		 		gobject_ffi::g_type_check_instance_is_a(
-		 			g_object as *mut _, Self::get_type()
+		 			g_object as *mut _, my_list_model_get_type()
 		 		)
 			);
 			println!("is gio_list_model_get_type() {}",
@@ -99,9 +87,8 @@ impl MyListModel {
 			my_list_model
 		}
 	}
-
-	impl_get_type!(Fzn, MyListModel, MyListModelClass);
 }
+
 pub unsafe extern "C" fn init_list_model_iface(iface: glib_ffi::gpointer,
 											  _data: glib_ffi::gpointer) {
 	let iface = &mut *(iface as *mut gio_ffi::GListModelInterface);
@@ -109,8 +96,6 @@ pub unsafe extern "C" fn init_list_model_iface(iface: glib_ffi::gpointer,
 	iface.get_n_items = Some(get_n_items);
 	iface.get_item = Some(get_item);
 }
-
-
 
 pub unsafe extern "C" fn get_item_type(_self: *mut gio_ffi::GListModel) -> glib_ffi::GType {
 	println!("get_item_type {}", gobject_ffi::G_TYPE_UINT);
