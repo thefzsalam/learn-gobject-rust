@@ -43,7 +43,6 @@ macro_rules! impl_get_type {
 						type_name.as_ptr(),
 						&type_info,
 						gobject_ffi::GTypeFlags::empty()
-						//0 /*gobject_ffi::GTypeFlags::empty()*/
 				);
 
 				/* FIXME: Make this general by adding macro parameters. */
@@ -69,7 +68,7 @@ macro_rules! impl_get_type {
 #[repr(C)]
 struct MyListModel {
 	pub parent: gobject_ffi::GObject,
-	pub items:	Vec<String>
+	pub items:	Vec<u8>
 }
 
 #[repr(C)]
@@ -101,8 +100,6 @@ impl MyListModel {
 		}
 	}
 
-
-
 	impl_get_type!(Fzn, MyListModel, MyListModelClass);
 }
 pub unsafe extern "C" fn init_list_model_iface(iface: glib_ffi::gpointer,
@@ -116,7 +113,7 @@ pub unsafe extern "C" fn init_list_model_iface(iface: glib_ffi::gpointer,
 
 
 pub unsafe extern "C" fn get_item_type(_self: *mut gio_ffi::GListModel) -> glib_ffi::GType {
-	gobject_ffi::G_TYPE_STRING
+	gobject_ffi::G_TYPE_UINT
 }
 
 pub unsafe extern "C" fn get_n_items(_self: *mut gio_ffi::GListModel) -> libc::c_uint {
@@ -126,19 +123,17 @@ pub unsafe extern "C" fn get_n_items(_self: *mut gio_ffi::GListModel) -> libc::c
 
 pub unsafe extern "C" fn get_item(_self: *mut gio_ffi::GListModel, index: libc::c_uint) -> glib_ffi::gpointer {
 	let this = &*(_self as *mut MyListModel);
-	let char_ptr: *mut libc::c_char = this.items[index as usize].to_glib_full();
-	char_ptr as glib_ffi::gpointer
+	let ptr: *mut libc::uint8_t = &(this.items[index as usize]) as *const _ as *mut _;
+	ptr as glib_ffi::gpointer
 }
 
 pub unsafe extern "C" fn create_widget(_item: *mut gobject_ffi::GObject, _data: *mut libc::c_void) -> *mut gtk_ffi::GtkWidget{
-/*	let item_char_ptr = _item as *mut libc::c_char;
-	let item = CString::from_raw(item_char_ptr).into_string().ok().unwrap();
-	println!("Creating {}", item); */
+	let item_ptr = _item as *mut libc::uint8_t;
+	println!("Creating {}", *item_ptr);
 	/*let row = gtk::ListBoxRow::new();
-	//let label = gtk::Label::new(Some(&item as &str));
-	//row.add(&label);
-	row.connect_destroy(move |_| {println!("Destroying123");});
-	mem::forget(row.clone());mem::forget(row.clone());
+	let label = gtk::Label::new(Some(&item as &str));
+	row.add(&label);
+	row.connect_destroy(move |_| {println!("Destroying Row");});
 	row.to_glib_full()*/
 	gtk_ffi::gtk_list_box_row_new()
 }
@@ -153,19 +148,21 @@ fn main() {
         return;
     }
     let window = gtk::Window::new(WindowType::Toplevel);
-    let l = gtk::ListBox::new();
-    let lm = MyListModel::new();
- 	lm.items.push(String::from("Test1"));
- 	lm.items.push(String::from("Test2"));
+    let listbox = gtk::ListBox::new();
+    let listmodel = MyListModel::new();
+
+    /* uncommenting this line prevents SISSEGV */
+ 	listmodel.items.push(10);
+
     unsafe {
-    gobject_ffi::g_object_ref(lm as *mut _ as *mut _);
-    gtk_ffi::gtk_list_box_bind_model(l.to_glib_none().0,
-    								 lm as *mut _ as *mut gio_ffi::GListModel,
-    								 Some(create_widget),
-    								 ptr::null_mut(),
-    								 Some(destroy_notify));
+    gtk_ffi::gtk_list_box_bind_model(
+		listbox.to_glib_none().0,
+		listmodel as *mut _ as *mut gio_ffi::GListModel,
+		Some(create_widget),
+		ptr::null_mut(),
+		Some(destroy_notify));
 	}
-	window.add(&l);
+	window.add(&listbox);
     window.show_all();
 	gtk::main();
 }
