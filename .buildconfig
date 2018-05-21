@@ -1,0 +1,10 @@
+[default]
+name=Default
+runtime=host
+config-opts=
+run-opts=
+prefix=/home/farzeen/.cache/gnome-builder/install/gobject-subclass-test/host
+app-id=
+postbuild=
+prebuild=
+default=true
