@@ -113,17 +113,20 @@ pub unsafe extern "C" fn init_list_model_iface(iface: glib_ffi::gpointer,
 
 
 pub unsafe extern "C" fn get_item_type(_self: *mut gio_ffi::GListModel) -> glib_ffi::GType {
+	println!("get_item_type {}", gobject_ffi::G_TYPE_UINT);
 	gobject_ffi::G_TYPE_UINT
 }
 
 pub unsafe extern "C" fn get_n_items(_self: *mut gio_ffi::GListModel) -> libc::c_uint {
 	let this = &*(_self as *mut MyListModel);
+	println!("Length is {}", this.items.len());
 	this.items.len() as u32
 }
 
 pub unsafe extern "C" fn get_item(_self: *mut gio_ffi::GListModel, index: libc::c_uint) -> glib_ffi::gpointer {
 	let this = &*(_self as *mut MyListModel);
 	let ptr: *mut libc::uint8_t = &(this.items[index as usize]) as *const _ as *mut _;
+	println!("get_item {}", *ptr);
 	ptr as glib_ffi::gpointer
 }
 
@@ -151,7 +154,7 @@ fn main() {
     let listbox = gtk::ListBox::new();
     let listmodel = MyListModel::new();
 
-    /* uncommenting this line prevents SISSEGV */
+    /* commenting out this line prevents SISSEGV */
  	listmodel.items.push(10);
 
     unsafe {
